@@ -1,0 +1,1030 @@
+	1. What is CTE .
+		a. Syntax:
+		WITH Simple_CTE
+AS (
+   SELECT dd.CalendarYear
+      ,fs.OrderDateKey
+      ,fs.ProductKey
+      ,fs.OrderQuantity * fs.UnitPrice AS TotalSale
+      ,dc.FirstName
+      ,dc.LastName
+   FROM [dbo].[FactInternetSales] fs
+   INNER JOIN [dbo].[DimCustomer] dc ON dc.CustomerKey = fs.CustomerKey
+   INNER JOIN [dbo].[DimDate] dd ON dd.DateKey = fs.OrderDateKey
+   )
+SELECT *
+FROM Simple_CTE
+		
+		CTE with SELECT
+		WITH Sum_OrderQuantity_CTE
+		AS (
+		SELECT ProductKey
+		,EnglishMonthName
+		,SUM(OrderQuantity) AS TotalOrdersByMonth
+		FROM [dbo].[FactInternetSales] fs
+		INNER JOIN [dbo].[DimDate] dd ON dd.DateKey = fs.OrderDateKey
+		GROUP BY ProductKey, EnglishMonthName
+		
+		)
+		SELECT ProductKey, AVG(TotalOrdersByMonth) AS 'Average Total Orders By Month'
+		FROM Sum_OrderQuantity_CTE
+		GROUP BY ProductKey
+		ORDER BY ProductKey
+		
+		CTE with INSERT
+	
+		WITH Simple_CTE
+AS (
+   SELECT dd.CalendarYear
+      ,fs.OrderDateKey
+      ,fs.ProductKey
+      ,fs.OrderQuantity * fs.UnitPrice AS TotalSale
+      ,dc.FirstName
+      ,dc.LastName
+   FROM [dbo].[FactInternetSales] fs
+   INNER JOIN [dbo].[DimCustomer] dc ON dc.CustomerKey = fs.CustomerKey
+   INNER JOIN [dbo].[DimDate] dd ON dd.DateKey = fs.OrderDateKey
+   )
+ 
+INSERT INTO dbo.TestTable
+SELECT * FROM Simple_CT
+		
+		
+		CTE with UPDATE
+		
+		WITH Update_CTE
+AS (
+   SELECT *
+   FROM dbo.DimCustomerBakUpdate
+   WHERE AddressLine2 IS NULL
+   )
+UPDATE Update_CTE
+SET AddressLine2 = ''
+		
+		CTE with DELETE
+		DELETEs requires that you have only used one table in your CTE, so you can't use any join statements, or you will get an error
+		
+		
+		Multiple CTEs in a Single Query
+		Finally, you are not limited to just writing a single CTE in a query. You can write as many as you want and separate them with a comma
+		
+	WITH Sales_Cust_Join_CTE
+AS (
+   SELECT fs.OrderDateKey
+      ,fs.ProductKey
+      ,fs.OrderQuantity * fs.UnitPrice AS TotalSale
+      ,dc.FirstName
+      ,dc.LastName
+   FROM [dbo].[FactInternetSales] fs
+   INNER JOIN [dbo].[DimCustomer] dc ON dc.CustomerKey = fs.CustomerKey
+   )
+   ,Date_CTE
+AS (
+   SELECT DateKey
+      ,CalendarYear
+   FROM [dbo].[DimDate]
+   )
+SELECT CalendarYear
+   ,ProductKey
+   ,SUM(TotalSale) AS TotalSales
+FROM Sales_Cust_Join_CTE
+INNER JOIN Date_CTE ON Date_CTE.DateKey = Sales_Cust_Join_CTE.OrderDateKey
+GROUP BY CalendarYear
+   ,ProductKey
+ORDER BY CalendarYear ASC
+   ,TotalSales DESC
+	
+	
+	When to use CTEs, and When not to
+	Though CTEs are a great way to write cleaner code, they should not be used in every scenario. For example, one major limitation is that a CTE is limited to the scope of a single execution. What that means in practice is that if you need to do more than one operation with this result set, you need to declare the CTE multiple times. This is not performant because we are doing the work of the CTE multiple times.
+	In this scenario it would probably be better to use a temporary table. Temporary tables can be used across multiple queries, and they can be indexed and store column statistics.
+	
+	
+	
+	
+	
+	2. What is clustered index:
+	Clustered indexes are indexes whose order of the rows in the data pages corresponds to the order of the rows in the index. This order is why only one clustered index can exist in any table, whereas, many non-clustered indexes can exist in the table
+	
+
+	CREATECLUSTEREDINDEX<index_name>ON[schema.]<table_name>(column_name [asc|desc]);
+	
+	CREATECLUSTEREDINDEXCIX_EmpDetails_EmpId
+ONdbo.EmployeeDetails(EmployeeID)
+	
+	3. Can you get the list of employees with same salary
+	Select distinct e.empid,e.empname,e.salary from employee e, employee e1 where e.salary =e1.salary and e.empid != e1.empid 
+	
+	4. What is an alternative for the TOP clause in SQL?
+	1. ROWCOUNT function 
+	2. Set rowcount 3
+	3. Select * from employee order by empid desc Set rowcount 0 
+	
+	SET ROWCOUNT 10
+SELECT * from Customers
+ORDER BY CompanyName
+	
+	With Cust AS
+( SELECT CustomerID, CompanyName,
+ROW_NUMBER() OVER (order by CompanyName) as RowNumber 
+FROM Customers )
+select *
+from Cust
+Where RowNumber Between 20 and 30
+	
+	#################################################################################
+	Analytical Functions
+	#################################################################################
+	
+	5.  What are Analytical functions and how do they differ from aggregate functions?
+	Aggregate funs return only one row per group.
+	Select sales_date, sum(total_amount) from sales group by sales_date order by sales_date
+	
+	Analytical funs return group value multiple times with each record, allowing further analysis.
+	The groups of rows on which an analytical function operates are defined by window partitioning and window frame clauses
+	
+	Select order_id,customer_id,product_id,sales_date, sum(total_amount) over (partition by sales_date) as total_amount from sales
+	
+	
+	6. What is the use of PIVOT() analytical function. 
+	We can convert the rowlevel data to column level.
+	
+	
+		Sales_month	Product_id	Sum(Total_amount)
+	1	01-FEB-15	200	4400
+	2	01-MAR-15	106	18568
+	3	01-JAN-15	100	374
+	4	01-APR-15	100	29282
+	5	01-MAR-15	101	16192
+	6	01-APR-15	101	33528
+	7	01-FEB-15	105	7986
+	8	01-APR-15	106	1386
+	9	01-MAR-15	100	16852
+	
+	Select * from(
+	Select Trunc(sales_month)
+	)
+		Sales_month	100	101	105	106	200
+	1	01-JAN-15	374	Null	Null	Null	Null
+	2	01-FEB-15	Null	Null	7986	Null	4400
+	3	01-MAR-15	16852	16192	Null	18568	Null
+	4	01-APR-15	29282	33582	Null	1386	Null
+	
+	
+	7. What is the use of LISTAGG() analytical function.
+	LISTAGG() function concatenates values of the row level columns for each group based on order by clause
+	
+	
+		REGION	LAST_NAME
+	1	SOUTH	AMRITHRAJ
+	2	SOUTH	JOSEPH
+	3	NORTH	MANN
+	
+	SELECT REGION, LISTAGG(LAST_NAME , ',') WITHIN GROUP (ORDER BY LAST_NAME) AS LAST_NAME FROM CUSTOMER
+	GROUP BY REGION
+	
+		REGION	LAST_NAME
+	1	NORTH	MANN
+	2	SOUTH	AMRITHRAJ,JOSEPH
+
+	8. Use of LEAD() and LAG() analytical functions?
+	These give access to multiple rows within a table, without the need for self join,
+	
+	LAG function is used to access data from previous row.
+	LEAD function is used to access data from next row.
+	
+	Select employee_id, 
+	first_name, salary ,
+	 LAG(salary,1,0) over (Order by salary) as sal_prev , 
+	LEAD(salary,1,0) over (order by salary) as sal_next
+	From employees
+		Employee_id	First_name	Salary	Sal_prev	Sal_next
+	1	132	TJ	2100	0	2200
+	2	128	Steven	2200	2100	2200
+	3	136	Hazel	2200	2200	2400
+	4	127	James	2400	2200	
+	
+	9. Difference between Rank() and Dense_Rank() analytical functions.
+	Rank() assigns a sequential order for the group mentioned , but when multiple rows share the same rank the next ran in the sequence is not consecutive.
+	
+	Select employee_id, depart_id , salary , RANK() over (partition by dept_id order by salary) as "Rank"
+	From employees where depart_id=90
+	
+	
+	
+	
+	Employee_id	Dept_id	Salary	Rank
+1	101	90	17000	1
+2	102	90	17000	1
+3	103	90	24000	3
+	
+	Dense_Rank() assigns a sequential order for the group mentioned , but when multiple rows share the same rank the next ran in the sequence is  consecutive.
+	
+	Select employee_id, depart_id , salary , Dense_RANK() over (partition by dept_id order by salary) as "Rank"
+	From employees where depart_id=90
+	
+	
+	
+	
+	Employee_id	Dept_id	Salary	Rank
+1	101	90	17000	1
+2	102	90	17000	1
+3	103	90	24000	2
+	
+	10. What is windowing Clause? 
+	A windowing clause defines the group (or window) of rows within a particular partition that will be used for analytical function computation.
+	
+	##########################################################################
+	VIEWS
+	###########################################################################
+	
+	
+	1. What are key preserved tables?
+	
+	A table is key preserved if every_key of the table  can also be a key of the result of the join. So a key-preserved table has its keys preserved through a join.
+	 This concept dictates the restriction on modifying  join views.
+	
+	Create view customer_sales as 
+	Select c.customer_id, c.first_name, c.last_name , c.region, s. sales_date ,s.order_id ,s.product_id, s.total_amount from customer c, sales s
+	Where c.customer_id=s.customer_id
+	
+	Here customer table has primary key on the customer_id and it is present in the view customer_sales. So customer table is our key-preserved table in this view.
+	
+	2. Can we delete a record in the view.
+	Yes but few conditions.
+	Rows from a join view can be deleted as long as there is exactly one key-preserved table in the join.
+	Key preserved table can be repeated in the from clause. (i.e. self join )
+	If the view is defined WITH CHECK OPTION clause and the key preserved table is repeated, then rows cannot be deleted from the view. (ie. Self join with WITH CHECK OPTION)
+	
+	
+	3. Can we update a view.
+	Yes
+	All updatable columns of a join view must map to columns of key-preserved table.
+	If the view is defined with the WITH CHECK OPTION clause , then all join columns and all columns of repeated tables are not updatable.
+
+	5. Can we insert data into view
+	YES
+	An insert statement must not explicitly or implicitly refer to the columns of non-key-preserved table
+	If the join view is defined with the WITH CHECK OPTION clause, INSERT statements are not permitted.
+	
+	
+	6. If table is dropped what happens to the view
+	All the views referring to the dropped table will become invalid.
+	
+	
+
+	
+
+	
+	###########################################################################
+	MATERIALIZED VIEWS
+	##########################################################################
+	
+	
+	1. What is a materialized view and why do we use them?
+	It is a self-refreshing view that stores the data results like a table. It is also known as a snapshot. 
+	MV's are used to replicate data across multiple servers
+	Mv's are used to build aggregate tables from detailed data to improve performance.
+	
+	2. Different refresh methods available for MV's.
+	Refresh types:
+		FAST: A fast refresh is attempted. If MV logs are not present against the source tables in advance , the creation fails.
+		COMPLETE: The table segment supporting the materialized view is truncated and repopulated completely using the associated query.
+		FORCE: A fast refresh is attempted, if one is not possible a complete refresh is performed.
+		
+	Refresh Methods:
+		ON COMMIT: The refresh is triggered by committed data change in one of the dependent tables.
+		ON DEMAND: The refresh is initiated by a manual request or scheduled task.
+	
+	
+	3. Difference between view and Materialized view
+	   Execution:
+		 A view's SQL is executed at run time. The results are fetched from the view's base table when the view is queried.
+	
+		A materialized view is a "pre-answered" query. The query is executed when materialized view is refreshed. Its result is stored in the database and query only browses the result.
+		
+	Space: 
+		A view occupies no space(other than its definition in data dictionary)
+		A materialized view occupies space. It exists same way as table. It sits on disk and could be indexed or partitioned.
+		
+	Freshness of Output:
+		A view's output is built on the fly; it shows real-time data from the base tables being queried.
+		A materialized view  does not reflect the real-time data. The data  is only up to date as the last time the materialized view was refreshed
+		
+	Where to Use:
+		View: You want to hide the implementation details of the complex query.
+			You want to restrict access to set of rows/columns in base tables.
+		
+	4. What is materialized view log or snapshot log?
+	An oracle object that holds the primary keys and/or the ROWIDS of rows that have been updated in the master table.
+	A snapshot log can also contain filter columns to support fast refreshing.
+	
+	5. Can we create a Materialized view on a different database and refresh it periodically? Is it possible?
+	Yes . You can do this using a Database link or a DB link.
+	
+	CREATE MATERIALIZED VIEW sales_summary_mv 
+	ON PREBUILT TABLE 
+	REFRESH FORCE AS 
+	SELECT a.customer_id,
+		Sum(a.tax) as tax,
+		Sum(a.total_amount) as total_amount
+	From customers@remotedb a
+	Group by a.customer_id
+	
+	6. What will happen to materialized view if base tables are deleted.
+	MV will not be deleted the data still exists. 
+	When you refresh the MV , it fails
+	
+	7. When I rename a column in a table which is used by Materialized view. Will the MV be updated or not?
+	MV will not be updated.
+	When you refresh the MV, it fails
+	
+	
+	
+	########################
+	TABLE
+	###########################################
+	
+		
+	1. Can we create a table based on existing table (or) How do you create a backup table ?
+	 create table sales_bkp as select * from sales
+	
+	2. Can we drop all the columns from a table? 
+	NO . We get error ORA-12893: cannot drop all columns in a table
+	
+	3. What are Pseudo columns?
+	A pseudo column behaves like a table column , but is not actually stored in the table. You can select pseudo columns but cannot insert,update,delete their values.
+	Sysdate : to get current date from database
+	Rowid : to get the physical address of the row from the database.
+	Rownum
+	Object_id
+	Object_value
+	Ora_rowscn
+	Xmldata
+	Currval
+	Nextval
+	
+	4. Difference between count(1) and count(*)?
+	They are same. They do the same thing , incur same amount of work and take same resources.
+	
+	
+	################################################################
+	FILTER
+	################################################################
+	
+	1. How many values can IN operator supports?    999
+	2. Difference between IN and EXISTS when using sub queries?
+	Difference is in the way query gets executed.
+	IN: the inner query gets executed first and the list of values obtained as the result will be used by the outer query. The inner query is executed only once.
+	
+	EXISTS:  The first row from the outer query is selected , then the inner query is executed  and, the outer query output uses this result for checking
+	This process of  inner query execution repeats as many number of times as there are outer query rows.
+	i.e. if there are ten rows that can result from outer query , the inner query is executed that many number of times.
+	
+	
+	3. Difference between where and having Clause:
+	Where is used to filter out the data before the aggregation takes place
+	Having is used to filter out the data after the aggregation takes place.
+	
+	Select department_id , sum(salary) as salary from employees
+	Where department_id in (100,90,200)
+	Group by department_id
+	Having sum(salary) > 10000
+	
+	
+	
+	####################################################################
+	DELETE
+	#################################################################
+	
+	1. Diff b/w delete and truncate? Which is faster?
+	Delete:
+	Selective delete using where clause and without where clause all rows gets deleted.
+	Commit and rollback can be done after the delete transactions.
+	Delete triggers on the table are fired if there are any triggers
+	
+	Truncate:
+	Removes all the rows. No roll back possible.
+	It doesn't affect any table's indexes ,Triggers or dependencies.
+	Since UNDO log is maintained and has no dependencies TRUNCATE is faster.
+	
+	
+	2. Can we delete a record from more than one table simultaneously?
+	Yes:
+	Delete t1, t2 
+	From t1 inner join t2
+	Where t1. id = t2.id
+	
+	3. How to delete duplicate records.
+		DEPARTNMENT_ID	DEPARTMENT_NAME	BRANCH
+	1	101	Information Technology	Computer Science
+	2	101	Information Technology	Computer Science
+	3	102	Natural Science	Science
+	4	103	Chemistry	Science
+	5	103	Chemistry	Science
+	
+	
+	Delete from department d1 where d1.rowid > (select min(d2.rowid) from department d2
+	 where d1.department_id = d2.departnement_id and 
+	 d1. department_name=d2.department_name and
+	 d1. branch=d2.branch)
+	
+	
+	
+#########################################################################
+JOINS
+######################################################################
+	1. What is a self join and can you explain with example?
+	Table joined with itself
+	
+	Getting details about employee and his manager.
+	
+	Select e1.ename as employee_name,
+		 e2.ename as employee_manager
+	 from employee e1, employee e2
+	 where e1. mgr = e2.empno
+	
+	
+	2. What happens when a join condition is missed?
+	Cross join . Number of records is cartesian product.
+	
+	Select * from sales s, customer c
+	
+	3. What is difference between CASE and DECODE.
+	Decode and Case provide if-then-else functionality
+	
+	Decode is a simple switch comparing each argument against the first such that
+	
+	Decode
+	('if this' ,
+	'matches this', 'then this result' ,
+	'matches this', 'then this result' ,
+	…
+	,'else alternative result'
+	)
+	
+	Whereas Case allows you do different tests with each when clause
+	CASE
+	WHEN A=B THEN C
+	WHEN D!=F THEN E
+	Else Q
+	
+	
+###########################################################################
+NULL
+###########################################################################
+	1. Explain NVL, NVL2 and NULL IF functions
+	
+	NVL: TO replace null values with default values. Accepts 2 Parameters.
+		If the value in the first parameter is null , the function returns the value present in the second parameter
+		If the value in the first parameter is not null , it returns the first parameter value.
+		
+	NVL2: Accepts 3 parameters
+		If the first parameter value is not null , it returns the value in the 2nd parameter
+		If the first  parameter value is null, it returns the 3rd parameter
+		
+	NULLIF : Accepts 2 parameters 
+		Returns null if both parameters are equal
+		If they are not equal then first parameter value is returned.
+		
+		Select NVL(null,1 ) from dual ; # 1
+		Select NVL('a',1) from dual' # a
+		Select nvl2('a',1,2) from dual #1
+		Select nvl2(null, 1,2) from dual  #2
+		Select nullif('a','a') from dual #null
+		Select nullif('a','b') from dual #a
+		
+		
+	2. Coalesce function.
+	Accepts two or more parameters
+	Returns first non-null value in the list.
+	If all parameters contains null values it returns null.
+	
+	Select coalesce('null','null', 'a', 'n') from dual  # a
+		
+
+	3. Can you modify NULL column to NOT NULL column , if table has some data.
+	Yes if column doesn't have NULL values and NO if column has NULL values
+	
+	4. What is the output of below SQL statement if customer_phone in table has null values
+	Select * from test1 where customer_phone = null;
+	Select * from test1 where customer_phone in (null) ;
+	
+	0 records as the key word to be used is  isnull 
+	
+	#############################
+	Integrity constraints
+	#############################
+	
+	1. Can table have two primary keys?
+	NO
+	
+	2. Can we create primary key constraint on one column and foreign key constraint on another column.
+	Yes
+	Create table test2(
+	Customer_id number primary_key,
+	Customer_name varchar2(30),
+	Customer_phone  number
+	)
+	
+	Create table test3(
+	Customer_id number references test2(customer_id),
+	Customer_name varchar2(30) primary_ key,
+	Customer_phone  number
+	)
+	
+	
+	3. How do you disable a constraint
+		Alter table test DISABLE CONSTRAINT constraint_name;
+		
+	4. If you create a primary key , will index be created by default.
+	Yes . Unique index is created by default.
+	
+	5. What is ON DELETE CASCADE.
+	A foreign key with cascade delete means that if record in parent table is deleted then corresponding record in the child will be automatically deleted.
+	
+	Create table a
+	(
+	Customer_id number,
+	Customer_name varchar2(40),
+	Constraint test_constr
+	Foreign key (cutomer_id)
+	References test2(customer_id)
+	On delete cascade
+	
+	)
+	
+	6. Which are fired first. Constraint or Trigger?
+	 constraint are fired first, if After trigger exist.
+	Triggers are fired first if Before triggers exist.
+	
+
+
+#########################################################################
+SUBQUERIES
+########################################################################
+	1. What is nested subquery?
+	 a query which appears in the where clause is called nested subquery.
+	
+	Select * from  sales where customer_id in (select customer_id from customer where region ="south")
+	
+	2. What is a inline view.
+	Subquery which appears in the FROM clause is called a inline view
+	
+	Select * from 
+	sales s , 
+	(select customer_id from customer where region ='south') c
+	 where s.customer_id = c. customer_id
+	
+	
+	3. What is a scalar subquery?
+	A subquery which appears in the select clause is called scalar subquery
+	It can return only 1 row and 1 column
+	
+	Select s.customer_id,
+	 s.total_amount ,
+	(select first_name from customer c  where c.customer_id =s. customer_id) first_name)
+	 from sales s
+	
+	4. What is the advantage of With Clause.
+	Using a with clause, we can execute the subquery once and can reference it multiple times in the main query.
+	
+	The data is saved in temporary table, thus improving the performance.
+	
+		With dept_count As (
+		Select deptno, count(*) as dept_count 
+		From emp
+		Group by deptno
+		)
+		Select e.ename as employee_name,
+			 dc1. dept_count as emp_dept_count,
+			 m.ename as manager_name,
+			 dc2.dept_count as mgr_dept_count
+		From emp e
+			dept_count dc1,
+			emp m,
+			Dept_count dc2
+		Where e.deptno=dc1.deptno
+		 and e.mgr = m.empno
+		
+		
+	5. Write a corelated subquery and explain how it works.
+	A correlated subquery is a query that uses values from the outer query, requiring the inner query to execute once for each outer query result.
+	
+	Salaries of employees whose salary is equal to the average salary of the department.
+	
+	Select empno, fname, sal, deptid from emp e  where sal = (select avg(sal) from emp where deptid = e.deptid)
+	
+	
+	
+	
+	############################################################
+	QUERIES
+	############################################################
+	
+	
+	1. Nth Maximum salary from a table.
+	Example: 5th highest salary
+	Without Using Analytical function
+	select * from emp emp1 where (5-1) = ( select count(distinct(emp2.sal)) from emp emp2 where emp2.sal > emp1.sal ) 
+	
+	With Analytical function:
+	
+	select * from ( select e.*, DENSE_RANK() over (order by sal DESC) RN from emp e ) where RN=5
+	
+	
+	2. Select Maximum N salaries from EMP Table. (or) Top N salaries from EMP Table.
+	
+	We can achieve this by using the DENSE_RANK Analytical function. In the below example we are getting the TOP 5 salaries from the EMP table.
+	
+	 select * from ( select e.*, DENSE_RANK() over (order by sal DESC) RN from emp e ) where RN <=5
+	
+	
+	3. Write a query to select/delete duplicate rows from the EMP table
+	
+	We can achieve this by using the pseudo column ROWID.
+	 select * from emp where rowid not in ( select min(rowid) from emp group by empno ); 
+	delete from emp where rowid not in ( select min(rowid) from emp group by empno )
+	
+	4. Write a query to select only those employee information who are earning the same salary?
+	
+	We can achieve this in at least 3 ways… 
+	1 st way 
+		select e1.* from emp e1,emp e2 where e1.sal=e2.sal and e1.ename <> e2.ename 
+	2 nd way 
+		select * from emp where sal in (select sal from emp group by sal having count(sal)>=2 )
+	 3 rd way 
+		SELECT * FROM ( SELECT e.*, count(*) Over (Partition BY sal ORDER BY sal) cnt FROM emp e ) WHERE cnt>=2;
+		
+	5. Write a query to display even/odd number rows from a table.
+	We can achieve this by using the ROWNUM pseudo column.
+	 select * from (select empno, ename, sal, rownum rn from emp order by empno ) where mod (rn, 2) <> 0 order by rn
+		
+	6. Write a query to find the number of rows in a table without using COUNT function.
+	SELECT MAX(rn) FROM ( SELECT ROW_NUMBER() OVER(ORDER BY empno DESC) as rn FROM emp )
+	
+
+#########################################################################################
+SQL TUNING
+#########################################################################################
+
+	1. How do you tune sql query? Explain the steps.
+	
+	a. You generate an Execution plan on the SQL statement by using Explain Plan
+	Explain plan for select order_id, sales_date, total_amount ,product_name from sales_history s where order_id<>12345;
+	
+	b. Now, you can check the execution plan generated using
+	Select * from table (DBMS_XPLAN.DISPLAY)
+
+	c. Now analyze the execution plan.
+		a. Check to see, if the SQL performed an index scan or Full scan
+		b. If it is full scan and if we are expecting Index Range scan , then I will see why the index was suppressed??
+		Using functions on index columns
+		Performing arithmetic operation on an index column
+		Use of <> on index colum
+		Use of || concatenation operator on index column
+		Comparing character indexed column with a numeric value
+		Use of is null or is not null
+			
+	d. If for any reason , why the index was suppressed, I will correct those actions
+	e. After correcting I will regenerate the EXECUTE PLAN and will analyze again
+	f. Now, I will see if the optimizer is performing the right JOIN method.
+	Nested loops
+	Hash join
+	Merge Join
+	
+	g. If optimizer is not performing right JOIN method , then I will apply HINTS to SQL statement to correct it
+
+
+
+
+
+##########################################################################################
+PLSQL
+#####################################################################################
+		
+		1. Structure of PLSQL block
+		DECLARE
+		<declaration section>
+		BEGIN
+		<Executable commands>
+		EXCEPTION
+		<exception handling>
+		END;
+		
+		
+		
+		
+		
+		###############################################
+		PROCEDURES AND FUNCTIONS
+		###############################################
+		
+		1. What is the Difference between Stored Procedure and Function
+	
+		Functions are written for specific task or computation, whereas procedures are used to execute a business logic.
+		
+		Function return atleast one value of any data type. More values can be returned using OUT Parameters. Procedures need not return any value.
+		
+		Functions can be called from SQL statements, but if a function has DML statements  (Insert,Update,Delete) then it cannot be called from SQL statement. Procedures cannot be called from SQL statements
+		
+		2. Can we return 2 values through a function. If I have to return emp number and salary how will you design this function
+	
+		Syntax:
+		CREATE [OR REPLACE] FUNCTION function_name [parameters]  
+		[(parameter_name [IN | OUT | IN OUT] type [, ...])]  
+		RETURN return_datatype  
+		{IS | AS}  
+		BEGIN  
+		   < function_body >  
+		END [function_name];  
+		
+		
+		
+		
+		Create or replace function  f1(name1 in varchar2, l_empno out number, l_salary out number) 
+		 return number
+		 is 
+		 BEGIN
+			Select empno, salary into l_empno, l_salary from emp where ename= name1;
+			 return 1;
+		END;
+		
+		
+		3. Create a function to add two numbers and call it in PLSQL block.
+		 
+		create or replace function adder(n1 in number, n2 in number)    
+		return number    
+		is     
+		n3 number(8);    
+		begin    
+		n3 :=n1+n2;    
+		return n3;    
+		end;    
+		/   
+		
+		DECLARE    
+		   n3 number(2);    
+		BEGIN    
+		   n3 := adder(11,22);    
+		   dbms_output.put_line('Addition is: ' || n3);    
+		END;    
+		/    
+		
+		
+		4. example to demonstrate Declaring, Defining and Invoking a simple PL/SQL function which will compute and return the maximum of two values
+	
+		DECLARE  
+		   a number;  
+		   b number;  
+		   c number;  
+		FUNCTION findMax(x IN number, y IN number)   
+		RETURN number  
+		IS  
+		    z number;  
+		BEGIN  
+		   IF x > y THEN  
+		      z:= x;  
+		   ELSE  
+		      Z:= y;  
+		   END IF;  
+		  
+		   RETURN z;  
+		END;   
+		BEGIN  
+		   a:= 23;  
+		   b:= 45;  
+		  
+		   c := findMax(a, b);  
+		   dbms_output.put_line(' Maximum of (23,45): ' || c);  
+		END;  
+		/  
+		
+		5. Create a function to to make database call and return count of total customers 
+		CREATE OR REPLACE FUNCTION totalCustomers  
+		RETURN number IS  
+		   total number(2) := 0;  
+		BEGIN  
+		   SELECT count(*) into total  
+		   FROM customers;  
+		    RETURN total;  
+		END;  
+		/  
+		
+		6. How do you drop a procedure?
+		7. CREATE [OR REPLACE] PROCEDURE procedure_name  
+		    [ (parameter [,parameter]) ]  
+		IS  
+		    [declaration_section]  
+		BEGIN  
+		    executable_section  
+		[EXCEPTION  
+		    exception_section]  
+		END [procedure_name]; 
+		
+		
+		 write the procedure code to insert record in emp table. Emp table has empid and ename.
+		
+		create or replace procedure "INSERTUSER"    
+		(id IN NUMBER,    
+		name IN VARCHAR2)    
+		is    
+		begin    
+		insert into empvalues(id,name);    
+		end;    
+		/       
+		
+		
+		BEGIN    
+		   insertuser(101,'Rahul');  
+		   dbms_output.put_line('record inserted successfully');    
+		END;    
+		/    
+		
+		
+	 8. Can you call a procedure in select statement:  NO
+	9. Can you call a function in select statement : Yes
+	10. Can you use out parameter in a function : Yes
+	11. How can you give execute privilege of a procedure to other Users?
+	Grant Execute on user1.procedure_name to user2;
+	Execute user1.procedure_name(param1, parm2)
+	
+	
+	
+	######################################################
+	TRIGGERS
+	########################################################
+	1. What are different types of triggers
+	Rowlevel, statement level(only once for transaction), before trigger(executed before actual event), after trigger(after the command is executed.)
+	Triggers are written to be executed in response to any of the following events:
+		A DML statement (Delete, Insert or Update)
+		DDL statement (Create, Alter or Drop)
+		Database operation (servererror, logon , logoff, startup or shutdown)
+		
+	2. Which will fire first Rowlevel trigger or statement level trigger. If we have both triggers on a table.
+		Statement level trigger is fired first.
+		
+	3. What is the use of Triggers while we  have constraints. Diff b/w Trigger and Constraint
+	Constraints have very limited functionality . They can check for Not NULL, Unique values,  Reference Values and CHECK  some business conditions
+	
+	Using triggers we can write a length code to execute various business rules, performing auditing , enforcing security and much more.
+		
+	4. Which will fire first Trigger or  a Constraint
+	Sequence is below:
+	Before statement level
+	Before row level
+	After row level
+	Constraint
+	After Statement level
+	
+	
+	
+	5. Can you issue a COMMIT in a trigger?    NO
+	Commit in trigger is not allowed because trigger is a part of a larger transaction
+	
+	You can COMMIT in a trigger by declaring it as autonomous transaction using the PRAGMA AUTONOMOUS_TRANSACTION (using this only the part of code present in the trigger is committed not the entire transaction)
+	
+	
+	6. What is PRAGMA AUTONOMOUS_TRANSACTION
+	A subprogram marked with AUTONOMOUS_TRANSACTION pragma can do SQL operations and commit or rollback those operations, without committing or rollbacking the data in the main transaction
+	
+	Declare
+	PRAGMA AUTONMOUS_TRANSACTION
+	BEGIN
+		FOR i in 3..10 LOOP
+		INSERT into at_test(id, description) values (i,'Description for '||i);
+		END LOOP;
+		COMMIT;
+	END;
+	
+	7. Have you used INSTEAD OF triggers? What is INSTEAD OF triggers?
+	Instead of triggers are used to execute a piece of code instead of performing the DML statement issued.
+	Mostly used to update views
+	
+	8. Can we write trigger on a view ?
+	Yes, we can write INSTEAD OF TRIGGER on a view. You can transform an INSERT against a complex view into any sort of DML operation on a base table
+	9. Do you know about CASCADING TRIGGERS.
+	When a trigger files, a SQL statement within its trigger action potentially can fire other triggers, resulting in cascading triggers.
+	
+	
+	
+	CREATE OR REPLACE TRIGGER customers_audit_trg
+	    AFTER 
+	    UPDATE OR DELETE 
+	    ON customers
+	    FOR EACH ROW    
+	DECLARE
+	   l_transaction VARCHAR2(10);
+	BEGIN
+	   -- determine the transaction type
+	   l_transaction := CASE  
+	         WHEN UPDATING THEN 'UPDATE'
+	         WHEN DELETING THEN 'DELETE'
+	   END;
+	
+	   -- insert a row into the audit table   
+	   INSERT INTO audits (table_name, transaction_name, by_user, transaction_date)
+	   VALUES('CUSTOMERS', l_transaction, USER, SYSDATE);
+	END;
+	/
+	
+	
+	10. Trigger variables (PL/SQL)
+	• NEW is a pseudo-record name that refers to the new table row for insert and update operations in row-level triggers. Its usage is :NEW. ...
+	• OLD is a pseudo-record name that refers to the old table row for update and delete operations in row-level triggers. Its usage is :OLD.
+	
+	11. We are using :old , :new in the trigger processing, what are these values?
+	When a row level trigger fires, the PL/SQL runtime system creates and populates the two pseudo records OLD and NEW
+	They are called Pseudo records because they have some ,but not all , of the properties of records.
+	For an insert trigger, OLD contains no values, NEW contains the new values
+	For an Update trigger, OLD contains old values, NEW contains new values.
+	For a Delete trigger, OLD contains old values and NEW contains no values.
+
+	12. Write a PL/SQL block for trigger at the time of UPDATE for inserting OLD and NEW values into a auditing table.
+	Create or Replace Trigger customer_before_update
+	 BEFORE UPDATE
+	 ON CUSTOMER
+	 REFERENCING NEW as NEW OLD as OLD 
+	FOR EACH ROW
+	DECLARE
+		v_username varchar2(10);
+	BEGIN
+		--find  username of a person performing insert into table
+		Select user into v_username from dual;
+		Insert into audit_log (o_fname, o_lname, n_fname, n_lname, chng_by, chng_when) values(
+		:OLD.fname, :OLD.lname, :NEW.fname, :NEW.lname, v_username,sysdate);
+	END;
+
+	
+	13. I wrote a trigger BEFORE INSERT on a table X and wrote a logic to INSERT table X in the same trigger. Will the trigger compile or throw an error?
+	
+	Create Table T_CHK (A Number);
+	Create or replace trigger TDS_INT.CHKT
+	BEFORE Insert on TDS_INT.T_CHK
+	FOR EACH ROW
+	BEGIN
+		Insert into T_CHK values (2);
+	END;
+	
+	Insert into T_CHK values (101);
+	
+	It will compile but when you fire the trigger , it will result in "ORA-00036: maximum number of recursive SQL Levels (50) exceeded"
+	
+	14. 
+	 
+	
+	
+
+	
+	Define UNION, UNION ALL, MINUS, INTERSECT?
+	Answer: 
+	• UNION – returns all distinct rows selected by either query.
+	• UNION ALL – returns all rows selected by either query, including all duplicates.
+	• MINUS – returns all distinct rows selected by the first query but not by the second.
+	• INTERSECT – returns all distinct rows selected by both queries
+	
+	
+	SQL server latest version : 2022
+	
+	
+	
+		
+	
+		
+		
+		
+		
+		 
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+	
+	
+		
+		
+		
+		
+	
+			
+		
+		
+		
+		
+		
+		 
+		
+		
+		
+		
+		
+		
+	
+		
